@@ -38,7 +38,7 @@ func main() {
 
 	logFilePath := viper.GetString("Log.file")
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
-	if !(logFilePath == "" || !strings.ContainsAny(logFilePath, "/\\")) {
+	if strings.ContainsAny(logFilePath, "/\\") {
 		logFile, err := os.OpenFile(logFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0664)
 		if err != nil {
 			panic(errors.New("failed to open log file: " + err.Error()))
