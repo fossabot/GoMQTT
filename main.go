@@ -31,13 +31,22 @@ func main() {
 		viper.AddConfigPath(".")
 		viper.SetDefault("Log.file", "./broker.log")
 	}
+	viper.SetDefault("Log.UTC", true)
 	err := viper.ReadInConfig()
 	if err != nil {
 		panic(errors.New("failed to read config file: " + err.Error()))
 	}
 
 	logFilePath := viper.GetString("Log.file")
-	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
+	finalFlag := log.Ldate | log.Ltime
+	if viper.GetBool("Log.UTC") {
+		finalFlag |= log.LUTC
+	}
+	if viper.GetBool("debug") {
+		finalFlag |= log.Lshortfile
+	}
+	log.SetFlags(finalFlag)
+
 	if strings.ContainsAny(logFilePath, "/\\") {
 		logFile, err := os.OpenFile(logFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0664)
 		if err != nil {
