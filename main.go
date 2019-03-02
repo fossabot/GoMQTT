@@ -12,7 +12,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-func main() {
+// preInit function reads configuration and initializes logging.
+func preInit() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("TOML")
 	if runtime.GOOS == "linux" {
@@ -26,7 +27,7 @@ func main() {
 		} else {
 			viper.AddConfigPath(".")
 		}
-		// TODO: viper.SetDefault("Log.system", false)
+		// TODO: viper.SetDefault("Log.system", false) // system logging
 	} else {
 		viper.AddConfigPath(".")
 		viper.SetDefault("Log.file", "./broker.log")
@@ -52,9 +53,14 @@ func main() {
 		if err != nil {
 			panic(errors.New("failed to open log file: " + err.Error()))
 		}
-		multiWriter := io.MultiWriter(os.Stdout, logFile)
-		log.SetOutput(multiWriter)
-	}
+		log.SetOutput(io.MultiWriter(os.Stdout, logFile))
+	} // else path is probably invalid. Log to stdout only.
+}
+
+func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	// Initializing logging and configuration manager.
+	preInit()
 
 	log.Println("GoMQTT Broker")
 	log.Println("Copyright © 2019 Vladyslav Yamkovyi (Hexawolf)")

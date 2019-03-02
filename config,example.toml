@@ -1,0 +1,11 @@
+# Enable debugging mode. Will be replaced with [Debug] section in future.
+# Affects following options:
+# - Logging will include calling source file;
+debug=false
+
+[Log]
+# Path to file to log to, including file name.
+# Any invalid path will disable logging to file.
+file="-"
+# Log time in UTC format.
+UTC=true
