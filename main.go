@@ -2,66 +2,72 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
-	"path/filepath"
+	"os/signal"
 	"runtime"
-	"strings"
+	"syscall"
 
-	"github.com/spf13/viper"
+	"github.com/BurntSushi/toml"
 )
 
-// preInit function reads configuration and initializes logging.
-func preInit() {
-	viper.SetConfigName("config")
-	viper.SetConfigType("TOML")
-	if runtime.GOOS == "linux" {
-		dir, err := filepath.Abs(filepath.Dir(os.Args[0])) // XXX: Unreliable
-		if err != nil {                                    // XXX: unexpected
-			panic(err)
+type Server struct {
+	Config struct {
+		Debug bool
+		Log   struct {
+			Path string
+			UTC  bool
 		}
-		if strings.Contains(dir, "bin") {
-			viper.SetDefault("Log.file", "/var/log/mqtt/broker.log")
-			viper.AddConfigPath("/etc/gomqtt/")
-		} else {
-			viper.AddConfigPath(".")
-		}
-		// TODO: viper.SetDefault("Log.system", false) // system logging
-	} else {
-		viper.AddConfigPath(".")
-		viper.SetDefault("Log.file", "./broker.log")
+		MQTTAddress   string
+		MQTTSNAddress string
 	}
-	viper.SetDefault("Log.UTC", true)
-	err := viper.ReadInConfig()
+}
+
+var serv Server
+
+// LoadConfig reads config from specified file and decodes it into a generic
+// structure
+func (s *Server) LoadConfig(path string) error {
+	file, err := os.Open(path)
 	if err != nil {
-		panic(errors.New("failed to read config file: " + err.Error()))
+		return err
+	}
+	defer file.Close()
+
+	if _, err := toml.DecodeReader(file, &s.Config); err != nil {
+		return err
 	}
 
-	logFilePath := viper.GetString("Log.file")
-	finalFlag := log.Ldate | log.Ltime
-	if viper.GetBool("Log.UTC") {
-		finalFlag |= log.LUTC
-	}
-	if viper.GetBool("debug") {
-		finalFlag |= log.Lshortfile
-	}
-	log.SetFlags(finalFlag)
+	return nil
+}
 
-	if strings.ContainsAny(logFilePath, "/\\") {
-		logFile, err := os.OpenFile(logFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0664)
+func main() {
+	fmt.Println("GoMQTT Broker")
+	fmt.Println("Copyright © 2019 Vladyslav Yamkovyi (Hexawolf)")
+
+	serv.LoadConfig("broker.cfg")
+	if serv.Config.Log.Path != "" {
+		logFile, err := os.OpenFile(serv.Config.Log.Path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0664)
 		if err != nil {
 			panic(errors.New("failed to open log file: " + err.Error()))
 		}
 		log.SetOutput(io.MultiWriter(os.Stdout, logFile))
-	} // else path is probably invalid. Log to stdout only.
-}
-
-func main() {
+	}
+	if serv.Config.Log.UTC {
+		log.SetFlags(log.LstdFlags | log.LUTC)
+	}
+	if serv.Config.Debug {
+		log.SetFlags(log.Flags() | log.Lshortfile)
+	}
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	// Initializing logging and configuration manager.
-	preInit()
 
-	log.Println("GoMQTT Broker")
-	log.Println("Copyright © 2019 Vladyslav Yamkovyi (Hexawolf)")
+	// Shutdown gracefully on signal
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt,
+		syscall.SIGTERM,
+		syscall.SIGINT,
+		syscall.SIGQUIT)
+	<-c
 }
