@@ -13,6 +13,8 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+// Server is a binding structure that binds everything related to the broker
+// runtime.
 type Server struct {
 	Config struct {
 		Debug bool
