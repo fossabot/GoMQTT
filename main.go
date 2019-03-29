@@ -65,6 +65,14 @@ func main() {
 	}
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
+	if serv.Config.MQTTSNAddress != "" {
+		go ListenUDP()
+	}
+
+	if serv.Config.MQTTAddress != "" {
+		log.Println("TCP listener is not implemented yet!")
+	}
+
 	// Shutdown gracefully on signal
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt,
