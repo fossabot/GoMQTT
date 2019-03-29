@@ -7,15 +7,8 @@ import (
 	"sync"
 )
 
-// This needs to be efficient, but it's not efficient.
-// Raise my salary and maybe I'll fix it.
-type topicNames struct {
-	sync.RWMutex
-	contents map[uint16]string
-	next     uint16
-}
-
 var tIndex topicNames
+var clients Clients
 
 func validateClientId(clientid []byte) (string, error) {
 	if len(clientid) == 0 {
@@ -32,6 +25,10 @@ func ListenUDP(addr string) {
 		sync.RWMutex{},
 		make(map[uint16]string),
 		0,
+	}
+	clients = Clients{
+		sync.RWMutex{},
+		make(map[string]SNClient),
 	}
 
 	address, err := net.ResolveUDPAddr("udp", addr)

@@ -45,6 +45,13 @@ func (s *Server) LoadConfig(path string) error {
 	return nil
 }
 
+// basically debugging hexa way lol
+func debug(s string) {
+	if serv.Config.Debug {
+		log.Println(s)
+	}
+}
+
 func main() {
 	fmt.Println("GoMQTT Broker")
 	fmt.Println("Copyright © 2019 Vladyslav Yamkovyi (Hexawolf)")
@@ -66,7 +73,7 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	if serv.Config.MQTTSNAddress != "" {
-		go ListenUDP()
+		go ListenUDP(serv.Config.MQTTSNAddress)
 	}
 
 	if serv.Config.MQTTAddress != "" {
