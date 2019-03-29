@@ -44,11 +44,38 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 	case *WillMsgMessage:
 		// WILLMSQ lol
 	case *RegisterMessage:
-		// REGISTER lol
+		topic := string(msg.TopicName)
+		var topicid uint16
+		if !tIndex.containsTopic(topic) {
+			topicid = tIndex.putTopic(topic)
+		} else {
+			topicid = tIndex.getId(topic)
+		}
+		tclient := clients.GetClient(addr)
+		tclient.Register(topicid, topic)
+		a := NewMessage(REGACK).(*RegackMessage)
+		a.TopicId = topicid
+		a.MessageId = msg.MessageId
+		a.ReturnCode = 0
+		if err := tclient.Write(a); err != nil {
+			log.Println(err)
+		}
 	case *RegackMessage:
 		// REGACK lol
 	case *PublishMessage:
-		// PUBLISH omegalul
+		topic := tIndex.getTopic(msg.TopicId)
+		for _, client := range clients.clients {
+			if client.registeredTopics[msg.TopicId] == topic {
+				client.Write(msg)
+			}
+		}
+		if msg.Qos > 0 {
+			a := NewMessage(PUBACK).(*PubackMessage)
+			a.ReturnCode = 0
+			a.MessageId = msg.MessageId
+			a.TopicId = msg.TopicId
+			clients.GetClient(addr).Write(a)
+		}
 	case *PubackMessage:
 		// PUBACK lol
 	case *PubcompMessage:
@@ -58,7 +85,24 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 	case *PubrelMessage:
 		// PUBREL lol
 	case *SubscribeMessage:
-		// SUBSCRIBE lol
+		var answer byte
+		var topicID uint16
+		switch msg.TopicIdType {
+		case 0x00, 0x02:
+			if !tIndex.containsTopic(string(msg.TopicName)) {
+				topicID = tIndex.putTopic(string(msg.TopicName))
+			}
+		case 0x01:
+			if !tIndex.containsId(msg.TopicId) {
+				log.Println("requested topic ID not found:", msg.TopicId)
+				answer = REJ_INVALID_TID
+			}
+			topicID = msg.TopicId
+		}
+		clients.GetClient(addr).Register(topicID, tIndex.getTopic(topicID))
+		ack := NewSubackMessage(msg.TopicId, msg.MessageId, msg.Qos, answer)
+		tclient := clients.GetClient(addr)
+		tclient.Write(ack)
 	case *SubackMessage:
 		// SUBACK lol
 	case *UnsubackMessage:

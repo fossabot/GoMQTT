@@ -6,10 +6,6 @@ import (
 	"sync"
 )
 
-type SNClient interface {
-	AddrString() string
-}
-
 type Client struct {
 	sync.RWMutex
 	ClientId         string
@@ -75,10 +71,10 @@ func (c *Client) String() string {
 type Clients struct {
 	sync.RWMutex
 	// indexed by "address:port" => StorableClient
-	clients map[string]SNClient
+	clients map[string]*Client
 }
 
-func (c *Clients) GetClient(addr *net.UDPAddr) SNClient {
+func (c *Clients) GetClient(addr *net.UDPAddr) *Client {
 	defer c.RUnlock()
 	c.RLock()
 	return c.clients[addr.String()]
@@ -88,7 +84,7 @@ func (c *Clients) GetClient(addr *net.UDPAddr) SNClient {
 // Clients are indexed by their address:port b/c
 // that's the only indentifying information we have
 // outside of a CONNECT packet
-func (c *Clients) AddClient(client SNClient) bool {
+func (c *Clients) AddClient(client *Client) bool {
 	defer c.Unlock()
 	c.Lock()
 	addr := client.AddrString()
