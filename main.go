@@ -55,8 +55,13 @@ func debug(s string) {
 func main() {
 	fmt.Println("GoMQTT Broker")
 	fmt.Println("Copyright © 2019 Vladyslav Yamkovyi (Hexawolf)")
+	fmt.Println()
 
-	serv.LoadConfig("broker.cfg")
+	err := serv.LoadConfig("broker.cfg")
+	if err != nil {
+		fmt.Println("open broker.cfg: The system cannot find the file specified.")
+		os.Exit(1)
+	}
 	if serv.Config.Log.Path != "" {
 		logFile, err := os.OpenFile(serv.Config.Log.Path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0664)
 		if err != nil {

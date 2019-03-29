@@ -1,4 +1,4 @@
-package udp
+package main
 
 // This is going to be an ennormously large file
 
