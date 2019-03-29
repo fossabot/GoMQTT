@@ -46,9 +46,9 @@ func (s *Server) LoadConfig(path string) error {
 }
 
 // basically debugging hexa way lol
-func debug(s string) {
+func debug(s ...interface{}) {
 	if serv.Config.Debug {
-		log.Println(s)
+		log.Println(s...)
 	}
 }
 

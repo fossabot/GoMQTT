@@ -9,6 +9,7 @@ import (
 func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAddr) {
 	buf := bytes.NewBuffer(buffer)
 	rawmsg, _ := ReadPacket(buf)
+	debug(rawmsg)
 
 	switch msg := rawmsg.(type) {
 	case *AdvertiseMessage:
@@ -100,7 +101,11 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 			topicID = msg.TopicId
 		}
 		clients.GetClient(addr).Register(topicID, tIndex.getTopic(topicID))
-		ack := NewSubackMessage(msg.TopicId, msg.MessageId, msg.Qos, answer)
+		ack := NewMessage(SUBACK).(*SubackMessage)
+		ack.MessageId = msg.MessageId
+		ack.Qos = msg.Qos
+		ack.ReturnCode = answer
+		ack.TopicId = topicID
 		tclient := clients.GetClient(addr)
 		tclient.Write(ack)
 	case *SubackMessage:

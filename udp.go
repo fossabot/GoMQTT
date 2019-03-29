@@ -56,7 +56,9 @@ func ListenUDP(addr string) {
 func Advertise(d uint16) {
 	for {
 		for _, client := range clients.clients {
-			adv := NewAdvertiseMessage(0, d)
+			adv := NewMessage(ADVERTISE).(*AdvertiseMessage)
+			adv.GatewayId = 0
+			adv.Duration = d
 			client.Write(adv)
 		}
 		time.Sleep((time.Duration(d) * time.Second) - (850 * time.Millisecond))
