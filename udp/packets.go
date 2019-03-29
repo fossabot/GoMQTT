@@ -141,6 +141,126 @@ func ReadPacket(r io.Reader) (m Message, err error) {
 	return m, nil
 }
 
+func NewMessage(msgType byte) (m Message) {
+	switch msgType {
+	case ADVERTISE:
+		m = &AdvertiseMessage{Header: Header{MessageType: ADVERTISE, Length: 5}}
+	case SEARCHGW:
+		m = &SearchGwMessage{Header: Header{MessageType: SEARCHGW, Length: 3}}
+	case GWINFO:
+		m = &GwInfoMessage{Header: Header{MessageType: GWINFO}}
+	case CONNECT:
+		m = &ConnectMessage{Header: Header{MessageType: CONNECT}, ProtocolId: 0x01}
+	case CONNACK:
+		m = &ConnackMessage{Header: Header{MessageType: CONNACK, Length: 3}}
+	case WILLTOPICREQ:
+		m = &WillTopicReqMessage{Header: Header{MessageType: WILLTOPICREQ, Length: 2}}
+	case WILLTOPIC:
+		m = &WillTopicMessage{Header: Header{MessageType: WILLTOPIC}}
+	case WILLMSGREQ:
+		m = &WillMsgReqMessage{Header: Header{MessageType: WILLMSGREQ, Length: 2}}
+	case WILLMSG:
+		m = &WillMsgMessage{Header: Header{MessageType: WILLMSG}}
+	case REGISTER:
+		m = &RegisterMessage{Header: Header{MessageType: REGISTER}}
+	case REGACK:
+		m = &RegackMessage{Header: Header{MessageType: REGACK, Length: 7}}
+	case PUBLISH:
+		m = &PublishMessage{Header: Header{MessageType: PUBLISH}}
+	case PUBACK:
+		m = &PubackMessage{Header: Header{MessageType: PUBACK, Length: 7}}
+	case PUBCOMP:
+		m = &PubcompMessage{Header: Header{MessageType: PUBCOMP, Length: 4}}
+	case PUBREC:
+		m = &PubrecMessage{Header: Header{MessageType: PUBREC, Length: 4}}
+	case PUBREL:
+		m = &PubrelMessage{Header: Header{MessageType: PUBREL, Length: 4}}
+	case SUBSCRIBE:
+		m = &SubscribeMessage{Header: Header{MessageType: SUBSCRIBE}}
+	case SUBACK:
+		m = &SubackMessage{Header: Header{MessageType: SUBACK, Length: 8}}
+	case UNSUBSCRIBE:
+		m = &UnsubscribeMessage{Header: Header{MessageType: UNSUBSCRIBE}}
+	case UNSUBACK:
+		m = &UnsubackMessage{Header: Header{MessageType: UNSUBACK, Length: 4}}
+	case PINGREQ:
+		m = &PingreqMessage{Header: Header{MessageType: PINGREQ}}
+	case PINGRESP:
+		m = &PingrespMessage{Header: Header{MessageType: PINGRESP, Length: 2}}
+	case DISCONNECT:
+		m = &DisconnectMessage{Header: Header{MessageType: DISCONNECT}}
+	case WILLTOPICUPD:
+		m = &WillTopicUpdateMessage{Header: Header{MessageType: WILLTOPICUPD}}
+	case WILLTOPICRESP:
+		m = &WillTopicRespMessage{Header: Header{MessageType: WILLTOPICRESP, Length: 3}}
+	case WILLMSGUPD:
+		m = &WillMsgUpdateMessage{Header: Header{MessageType: WILLMSGUPD}}
+	case WILLMSGRESP:
+		m = &WillMsgRespMessage{Header: Header{MessageType: WILLMSGRESP, Length: 3}}
+	}
+	return
+}
+
+func NewMessageWithHeader(h Header) (m Message) {
+	switch h.MessageType {
+	case ADVERTISE:
+		m = &AdvertiseMessage{Header: h}
+	case SEARCHGW:
+		m = &SearchGwMessage{Header: h}
+	case GWINFO:
+		m = &GwInfoMessage{Header: h}
+	case CONNECT:
+		m = &ConnectMessage{Header: h}
+	case CONNACK:
+		m = &ConnackMessage{Header: h}
+	case WILLTOPICREQ:
+		m = &WillTopicReqMessage{Header: h}
+	case WILLTOPIC:
+		m = &WillTopicMessage{Header: h}
+	case WILLMSGREQ:
+		m = &WillMsgReqMessage{Header: h}
+	case WILLMSG:
+		m = &WillMsgMessage{Header: h}
+	case REGISTER:
+		m = &RegisterMessage{Header: h}
+	case REGACK:
+		m = &RegackMessage{Header: h}
+	case PUBLISH:
+		m = &PublishMessage{Header: h}
+	case PUBACK:
+		m = &PubackMessage{Header: h}
+	case PUBCOMP:
+		m = &PubcompMessage{Header: h}
+	case PUBREC:
+		m = &PubrecMessage{Header: h}
+	case PUBREL:
+		m = &PubrelMessage{Header: h}
+	case SUBSCRIBE:
+		m = &SubscribeMessage{Header: h}
+	case SUBACK:
+		m = &SubackMessage{Header: h}
+	case UNSUBSCRIBE:
+		m = &UnsubscribeMessage{Header: h}
+	case UNSUBACK:
+		m = &UnsubackMessage{Header: h}
+	case PINGREQ:
+		m = &PingreqMessage{Header: h}
+	case PINGRESP:
+		m = &PingrespMessage{Header: h}
+	case DISCONNECT:
+		m = &DisconnectMessage{Header: h}
+	case WILLTOPICUPD:
+		m = &WillTopicUpdateMessage{Header: h}
+	case WILLTOPICRESP:
+		m = &WillTopicRespMessage{Header: h}
+	case WILLMSGUPD:
+		m = &WillMsgUpdateMessage{Header: h}
+	case WILLMSGRESP:
+		m = &WillMsgRespMessage{Header: h}
+	}
+	return
+}
+
 func readByte(b io.Reader) byte {
 	num := make([]byte, 1)
 	b.Read(num)
