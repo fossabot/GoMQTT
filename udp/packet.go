@@ -304,6 +304,14 @@ func (a *AdvertiseMessage) Unpack(b io.Reader) {
 	a.Duration = readUint16(b)
 }
 
+func NewAdvertiseMessage(gwid byte, duration uint16) *AdvertiseMessage {
+	return &AdvertiseMessage{
+		// TODO
+		GatewayId: gwid,
+		Duration:  duration,
+	}
+}
+
 type SearchGwMessage struct {
 	Header
 	Radius byte
