@@ -80,9 +80,9 @@ func (c *Clients) GetClient(addr *net.UDPAddr) *Client {
 	return c.clients[addr.String()]
 }
 
-// AddClient returnd true if this is a new client, false otherwise
+// AddClient returns true if this is a new client, false otherwise
 // Clients are indexed by their address:port b/c
-// that's the only indentifying information we have
+// that's the only identifying information we have
 // outside of a CONNECT packet
 func (c *Clients) AddClient(client *Client) bool {
 	defer c.Unlock()

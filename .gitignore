@@ -16,3 +16,6 @@
 
 # Build directory
 /build/
+
+# JetBrains
+.idea/

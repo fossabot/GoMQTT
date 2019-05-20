@@ -135,7 +135,7 @@ func ReadPacket(r io.Reader) (m Message, err error) {
 	h.unpack(packetBuf)
 	m = NewMessageWithHeader(h)
 	if m == nil {
-		return nil, errors.New("Bad data from client")
+		return nil, errors.New("bad data from client")
 	}
 	m.Unpack(packetBuf)
 	return m, nil
