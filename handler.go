@@ -113,7 +113,8 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 	case *UnsubackMessage:
 		// UNSUBACK lol
 	case *PingreqMessage:
-		// PINGREQ lol
+		a := NewMessage(PINGRESP).(*PingrespMessage)
+		clients.GetClient(addr).Write(a)
 	case *DisconnectMessage:
 		tclient := clients.GetClient(addr)
 		msg.Duration = 0
