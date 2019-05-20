@@ -13,11 +13,15 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 
 	switch msg := rawmsg.(type) {
 	case *AdvertiseMessage:
-		// ADVERTISE lol
+		// ADVERTISE must be handled by a broker in future to allow
+		// clusterized MQTT-SN clouds: brokers are also (forwarding) clients.
 	case *SearchGwMessage:
-		// SEARCHGW lol
+		// SEARCHGW is useful for searching for new brokers in range of a
+		// single network hop. Typically, a broker must NOT broadcast
+		// SEARCHGW on more than a single hop.
 	case *GwInfoMessage:
-		// GWINFO lol
+		// Each broker must implement GWINFO to supply the automated creation of
+		// clusterized MQTT-SN clouds.
 	case *ConnectMessage:
 		clientid, err := validateClientId(msg.ClientId)
 		if err != nil {
@@ -35,7 +39,8 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 			log.Println(err)
 		}
 	case *ConnackMessage:
-		// CONNACK lol
+		// CONNACK is a next step of a MQTT-SN cluster system creation. As it was
+		// stated earlier, a broker is also a (forwarding) client for other brokers.
 	case *WillTopicReqMessage:
 		// WILLTOPICREQ lol
 	case *WillTopicMessage:
@@ -62,7 +67,8 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 			log.Println(err)
 		}
 	case *RegackMessage:
-		// REGACK lol
+		// REGACK may occur on broker level because brokers may also subscribe to
+		// (supposedly wildcard) topics on other brokers and forward messages.
 	case *PublishMessage:
 		topic := tIndex.getTopic(msg.TopicId)
 		for _, client := range clients.clients {
@@ -78,13 +84,17 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 			clients.GetClient(addr).Write(a)
 		}
 	case *PubackMessage:
-		// PUBACK lol
+		// PUBACK is needed if QoS level between brokers is >0.
 	case *PubcompMessage:
-		// PUBCOMP lol
+		// PUBCOMP is used by MQTT-SN itself to ensure that the message was
+		// delivered exactly once.
 	case *PubrecMessage:
-		// PUBREC lol
+		// PUBREC is a first message sent in response by a broker on QoS 2
+		// to acknowledge the client that the message was received.
 	case *PubrelMessage:
-		// PUBREL lol
+		// PUBREL is a next step of MQTT-SN QoS 2 publication acknowledgement
+		// process that ensures the publication further, avoiding duplicate
+		// publishing.
 	case *SubscribeMessage:
 		var answer byte
 		var topicID uint16
@@ -109,9 +119,11 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 		tclient := clients.GetClient(addr)
 		tclient.Write(ack)
 	case *SubackMessage:
-		// SUBACK lol
+		// SUBACK is processed by a broker as well when subscribing to other
+		// brokers.
 	case *UnsubackMessage:
-		// UNSUBACK lol
+		// UNSUBACK is processed by a broker as well when subscribing to other
+		// brokers.
 	case *PingreqMessage:
 		a := NewMessage(PINGRESP).(*PingrespMessage)
 		clients.GetClient(addr).Write(a)
