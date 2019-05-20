@@ -115,7 +115,9 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 	case *PingreqMessage:
 		// PINGREQ lol
 	case *DisconnectMessage:
-		// DISCONNECT lol
+		tclient := clients.GetClient(addr)
+		msg.Duration = 0
+		tclient.Write(msg)
 	case *WillTopicUpdateMessage:
 		// WILLTOPICUPD lol
 	case *WillTopicRespMessage:
