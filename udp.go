@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"sync"
@@ -49,6 +50,9 @@ func ListenUDP(addr string) {
 			log.Println("Socket error:", err)
 			time.Sleep(3 * time.Second)
 			continue
+		}
+		if debug {
+			fmt.Println("Received", n, "bytes.")
 		}
 		if n < 2 {
 			log.Println("Bad data from", remote.String())

@@ -17,16 +17,18 @@ import (
 // runtime.
 var serv struct {
 	Config struct {
-		Debug bool
 		MQTTAddress   string
 		MQTTSNAddress string
 		Buffer int
 		Log   struct {
 			Path string
 			UTC  bool
+			Debug bool
 		}
 	}
 }
+
+var debug = true
 
 // LoadConfig reads config from specified file and decodes it into a generic
 // structure
@@ -40,6 +42,7 @@ func LoadConfig(path string) error {
 	if _, err := toml.DecodeReader(file, &serv.Config); err != nil {
 		return err
 	}
+	debug = serv.Config.Log.Debug
 
 	return nil
 }
@@ -64,12 +67,13 @@ func main() {
 	if serv.Config.Log.UTC {
 		log.SetFlags(log.LstdFlags | log.LUTC)
 	}
-	if serv.Config.Debug {
+	if debug {
 		log.SetFlags(log.Flags() | log.Lshortfile)
 	}
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	if serv.Config.MQTTSNAddress != "" {
+		log.Println("Starting UDP listener on address", serv.Config.MQTTSNAddress)
 		go ListenUDP(serv.Config.MQTTSNAddress)
 	}
 

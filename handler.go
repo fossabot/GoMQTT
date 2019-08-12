@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
+	"fmt"
 	"log"
 	"net"
 )
@@ -10,8 +12,8 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 	buffer = buffer[:nbytes]
 	buf := bytes.NewBuffer(buffer)
 	rawmsg, _ := ReadPacket(buf)
-	if serv.Config.Debug {
-		log.Println(rawmsg)
+	if debug {
+		fmt.Println(hex.EncodeToString(buffer))
 	}
 
 	switch msg := rawmsg.(type) {
@@ -61,6 +63,10 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 			topicid = tIndex.getId(topic)
 		}
 		tclient := clients.GetClient(addr)
+		if tclient == nil {
+			log.Println("Received packet from non-existent user!")
+			return
+		}
 		tclient.Register(topicid, topic)
 		a := NewMessage(REGACK).(*RegackMessage)
 		a.TopicId = topicid
@@ -143,6 +149,6 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 	case *WillMsgRespMessage:
 		// WILLMSGRESP lol
 	default:
-		log.Println("Unknown Message Type %T\n", msg)
+		log.Printf("Unknown Message Type %T\n", msg)
 	}
 }

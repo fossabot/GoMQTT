@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"unicode/utf8"
 )
 
 // Flags
@@ -124,21 +125,24 @@ func (h *Header) pack() bytes.Buffer {
 type Message interface {
 	MessageType() byte
 	Write(io.Writer) error
-	Unpack(io.Reader)
+	Unpack(io.Reader) error
 }
 
 func ReadPacket(r io.Reader) (m Message, err error) {
 	var h Header
 	packet := make([]byte, serv.Config.Buffer)
-	r.Read(packet)
+	_, err = r.Read(packet)
+	if err != nil {
+		return nil, err
+	}
 	packetBuf := bytes.NewBuffer(packet)
 	h.unpack(packetBuf)
 	m = NewMessageWithHeader(h)
 	if m == nil {
 		return nil, errors.New("bad data from client")
 	}
-	m.Unpack(packetBuf)
-	return m, nil
+	err = m.Unpack(packetBuf)
+	return
 }
 
 func NewMessage(msgType byte) (m Message) {
@@ -279,6 +283,23 @@ func encodeUint16(num uint16) []byte {
 	return bytes
 }
 
+// readString tries to read and validate a string as a byte array from the given buffer.
+func readString(b io.Reader) (buf []byte, err error) {
+	n, err := b.Read(buf)
+	if err != nil {
+		return
+	}
+	ok := utf8.Valid(buf)
+	if n < 2 || !ok {
+		err = errors.New("bad topic name")
+		return
+	}
+	if buf[0] != '/' {
+		err = errors.New("topic name must start with a slash")
+	}
+	return
+}
+
 type AdvertiseMessage struct {
 	Header
 	GatewayId byte
@@ -289,19 +310,20 @@ func (a *AdvertiseMessage) MessageType() byte {
 	return ADVERTISE
 }
 
-func (a *AdvertiseMessage) Write(w io.Writer) error {
+func (a *AdvertiseMessage) Write(w io.Writer) (err error) {
 	packet := a.Header.pack()
 	packet.WriteByte(ADVERTISE)
 	packet.WriteByte(a.GatewayId)
 	packet.Write(encodeUint16(a.Duration))
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (a *AdvertiseMessage) Unpack(b io.Reader) {
+func (a *AdvertiseMessage) Unpack(b io.Reader) (err error) {
 	a.GatewayId = readByte(b)
 	a.Duration = readUint16(b)
+	return nil
 }
 
 type SearchGwMessage struct {
@@ -313,17 +335,18 @@ func (s *SearchGwMessage) MessageType() byte {
 	return SEARCHGW
 }
 
-func (s *SearchGwMessage) Write(w io.Writer) error {
+func (s *SearchGwMessage) Write(w io.Writer) (err error) {
 	packet := s.Header.pack()
 	packet.WriteByte(SEARCHGW)
 	packet.WriteByte(s.Radius)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (s *SearchGwMessage) Unpack(b io.Reader) {
+func (s *SearchGwMessage) Unpack(b io.Reader) (err error) {
 	s.Radius = readByte(b)
+	return nil
 }
 
 type GwInfoMessage struct {
@@ -336,22 +359,23 @@ func (g *GwInfoMessage) MessageType() byte {
 	return GWINFO
 }
 
-func (g *GwInfoMessage) Write(w io.Writer) error {
+func (g *GwInfoMessage) Write(w io.Writer) (err error) {
 	g.Header.Length = uint16(len(g.GatewayAddress) + 3)
 	packet := g.Header.pack()
 	packet.WriteByte(GWINFO)
 	packet.WriteByte(g.GatewayId)
 	packet.Write(g.GatewayAddress)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (g *GwInfoMessage) Unpack(b io.Reader) {
+func (g *GwInfoMessage) Unpack(b io.Reader) (err error) {
 	g.GatewayId = readByte(b)
 	if g.Header.Length > 3 {
-		b.Read(g.GatewayAddress)
+		_, err = b.Read(g.GatewayAddress)
 	}
+	return
 }
 
 type ConnectMessage struct {
@@ -383,7 +407,7 @@ func (c *ConnectMessage) encodeFlags() byte {
 	return b
 }
 
-func (c *ConnectMessage) Write(w io.Writer) error {
+func (c *ConnectMessage) Write(w io.Writer) (err error) {
 	c.Header.Length = uint16(len(c.ClientId) + 6)
 	packet := c.Header.pack()
 	packet.WriteByte(CONNECT)
@@ -391,17 +415,18 @@ func (c *ConnectMessage) Write(w io.Writer) error {
 	packet.WriteByte(c.ProtocolId)
 	packet.Write(encodeUint16(c.Duration))
 	packet.Write([]byte(c.ClientId))
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
 	return err
 }
 
-func (c *ConnectMessage) Unpack(b io.Reader) {
+func (c *ConnectMessage) Unpack(b io.Reader) (err error) {
 	c.decodeFlags(readByte(b))
 	c.ProtocolId = readByte(b)
 	c.Duration = readUint16(b)
 	c.ClientId = make([]byte, c.Header.Length-6)
-	b.Read(c.ClientId)
+	_, err = b.Read(c.ClientId)
+	return
 }
 
 type ConnackMessage struct {
@@ -413,17 +438,18 @@ func (c *ConnackMessage) MessageType() byte {
 	return CONNACK
 }
 
-func (c *ConnackMessage) Write(w io.Writer) error {
+func (c *ConnackMessage) Write(w io.Writer) (err error) {
 	packet := c.Header.pack()
 	packet.WriteByte(CONNACK)
 	packet.WriteByte(c.ReturnCode)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (c *ConnackMessage) Unpack(b io.Reader) {
+func (c *ConnackMessage) Unpack(b io.Reader) (err error) {
 	c.ReturnCode = readByte(b)
+	return
 }
 
 type WillTopicReqMessage struct {
@@ -434,16 +460,16 @@ func (wt *WillTopicReqMessage) MessageType() byte {
 	return WILLTOPICREQ
 }
 
-func (wt *WillTopicReqMessage) Write(w io.Writer) error {
+func (wt *WillTopicReqMessage) Write(w io.Writer) (err error) {
 	packet := wt.Header.pack()
 	packet.WriteByte(WILLTOPICREQ)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (wt *WillTopicReqMessage) Unpack(b io.Reader) {
-
+func (wt *WillTopicReqMessage) Unpack(b io.Reader) (err error) {
+	return
 }
 
 type WillTopicMessage struct {
@@ -472,7 +498,7 @@ func (wt *WillTopicMessage) decodeFlags(b byte) {
 	wt.Retain = (b & RETAINFLAG) == RETAINFLAG
 }
 
-func (wt *WillTopicMessage) Write(w io.Writer) error {
+func (wt *WillTopicMessage) Write(w io.Writer) (err error) {
 	if len(wt.WillTopic) == 0 {
 		wt.Header.Length = 2
 	} else {
@@ -484,16 +510,17 @@ func (wt *WillTopicMessage) Write(w io.Writer) error {
 		packet.WriteByte(wt.encodeFlags())
 		packet.Write(wt.WillTopic)
 	}
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (wt *WillTopicMessage) Unpack(b io.Reader) {
+func (wt *WillTopicMessage) Unpack(b io.Reader) (err error) {
 	if wt.Header.Length > 2 {
 		wt.decodeFlags(readByte(b))
-		b.Read(wt.WillTopic)
+		wt.WillTopic, err = readString(b)
 	}
+	return
 }
 
 type WillMsgReqMessage struct {
@@ -504,16 +531,16 @@ func (wm *WillMsgReqMessage) MessageType() byte {
 	return WILLMSGREQ
 }
 
-func (wm *WillMsgReqMessage) Write(w io.Writer) error {
+func (wm *WillMsgReqMessage) Write(w io.Writer) (err error) {
 	packet := wm.Header.pack()
 	packet.WriteByte(wm.Header.MessageType)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (wm *WillMsgReqMessage) Unpack(b io.Reader) {
-
+func (wm *WillMsgReqMessage) Unpack(b io.Reader) (err error) {
+	return
 }
 
 type WillMsgMessage struct {
@@ -525,18 +552,19 @@ func (wm *WillMsgMessage) MessageType() byte {
 	return WILLMSG
 }
 
-func (wm *WillMsgMessage) Write(w io.Writer) error {
+func (wm *WillMsgMessage) Write(w io.Writer) (err error) {
 	wm.Header.Length = uint16(len(wm.WillMsg) + 2)
 	packet := wm.Header.pack()
 	packet.WriteByte(WILLMSG)
 	packet.Write(wm.WillMsg)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (wm *WillMsgMessage) Unpack(b io.Reader) {
-	b.Read(wm.WillMsg)
+func (wm *WillMsgMessage) Unpack(b io.Reader) (err error) {
+	_, err = b.Read(wm.WillMsg)
+	return
 }
 
 type RegisterMessage struct {
@@ -558,23 +586,24 @@ func (r *RegisterMessage) MessageType() byte {
 	return REGISTER
 }
 
-func (r *RegisterMessage) Write(w io.Writer) error {
+func (r *RegisterMessage) Write(w io.Writer) (err error) {
 	r.Header.Length = uint16(len(r.TopicName) + 6)
 	packet := r.Header.pack()
 	packet.WriteByte(REGISTER)
 	packet.Write(encodeUint16(r.TopicId))
 	packet.Write(encodeUint16(r.MessageId))
 	packet.Write(r.TopicName)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (r *RegisterMessage) Unpack(b io.Reader) {
+func (r *RegisterMessage) Unpack(b io.Reader) (err error) {
 	r.TopicId = readUint16(b)
 	r.MessageId = readUint16(b)
 	r.TopicName = make([]byte, r.Header.Length-6)
-	b.Read(r.TopicName)
+	r.TopicName, err = readString(b)
+	return
 }
 
 type RegackMessage struct {
@@ -588,21 +617,22 @@ func (r *RegackMessage) MessageType() byte {
 	return REGACK
 }
 
-func (r *RegackMessage) Write(w io.Writer) error {
+func (r *RegackMessage) Write(w io.Writer) (err error) {
 	packet := r.Header.pack()
 	packet.WriteByte(REGACK)
 	packet.Write(encodeUint16(r.TopicId))
 	packet.Write(encodeUint16(r.MessageId))
 	packet.WriteByte(r.ReturnCode)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (r *RegackMessage) Unpack(b io.Reader) {
+func (r *RegackMessage) Unpack(b io.Reader) (err error) {
 	r.TopicId = readUint16(b)
 	r.MessageId = readUint16(b)
 	r.ReturnCode = readByte(b)
+	return
 }
 
 type PublishMessage struct {
@@ -652,7 +682,7 @@ func (p *PublishMessage) decodeFlags(b byte) {
 	p.TopicIdType = b & TOPICIDTYPE
 }
 
-func (p *PublishMessage) Write(w io.Writer) error {
+func (p *PublishMessage) Write(w io.Writer) (err error) {
 	p.Header.Length = uint16(len(p.Data) + 7)
 	packet := p.Header.pack()
 	packet.WriteByte(PUBLISH)
@@ -660,17 +690,18 @@ func (p *PublishMessage) Write(w io.Writer) error {
 	packet.Write(encodeUint16(p.TopicId))
 	packet.Write(encodeUint16(p.MessageId))
 	packet.Write(p.Data)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (p *PublishMessage) Unpack(b io.Reader) {
+func (p *PublishMessage) Unpack(b io.Reader) (err error) {
 	p.decodeFlags(readByte(b))
 	p.TopicId = readUint16(b)
 	p.MessageId = readUint16(b)
 	p.Data = make([]byte, p.Header.Length-7)
-	b.Read(p.Data)
+	_, err = b.Read(p.Data)
+	return
 }
 
 type PubackMessage struct {
@@ -684,21 +715,22 @@ func (p *PubackMessage) MessageType() byte {
 	return PUBACK
 }
 
-func (p *PubackMessage) Write(w io.Writer) error {
+func (p *PubackMessage) Write(w io.Writer) (err error) {
 	packet := p.Header.pack()
 	packet.WriteByte(PUBACK)
 	packet.Write(encodeUint16(p.TopicId))
 	packet.Write(encodeUint16(p.MessageId))
 	packet.WriteByte(p.ReturnCode)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (p *PubackMessage) Unpack(b io.Reader) {
+func (p *PubackMessage) Unpack(b io.Reader) (err error) {
 	p.TopicId = readUint16(b)
 	p.MessageId = readUint16(b)
 	p.ReturnCode = readByte(b)
+	return
 }
 
 type PubcompMessage struct {
@@ -710,17 +742,18 @@ func (p *PubcompMessage) MessageType() byte {
 	return PUBCOMP
 }
 
-func (p *PubcompMessage) Write(w io.Writer) error {
+func (p *PubcompMessage) Write(w io.Writer) (err error) {
 	packet := p.Header.pack()
 	packet.WriteByte(PUBCOMP)
 	packet.Write(encodeUint16(p.MessageId))
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (p *PubcompMessage) Unpack(b io.Reader) {
+func (p *PubcompMessage) Unpack(b io.Reader) (err error) {
 	p.MessageId = readUint16(b)
+	return
 }
 
 type PubrecMessage struct {
@@ -732,17 +765,18 @@ func (p *PubrecMessage) MessageType() byte {
 	return PUBREC
 }
 
-func (p *PubrecMessage) Write(w io.Writer) error {
+func (p *PubrecMessage) Write(w io.Writer) (err error) {
 	packet := p.Header.pack()
 	packet.WriteByte(PUBREC)
 	packet.Write(encodeUint16(p.MessageId))
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (p *PubrecMessage) Unpack(b io.Reader) {
+func (p *PubrecMessage) Unpack(b io.Reader) (err error) {
 	p.MessageId = readUint16(b)
+	return
 }
 
 type PubrelMessage struct {
@@ -754,17 +788,18 @@ func (p *PubrelMessage) MessageType() byte {
 	return PUBREL
 }
 
-func (p *PubrelMessage) Write(w io.Writer) error {
+func (p *PubrelMessage) Write(w io.Writer) (err error) {
 	packet := p.Header.pack()
 	packet.WriteByte(PUBREL)
 	packet.Write(encodeUint16(p.MessageId))
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (p *PubrelMessage) Unpack(b io.Reader) {
+func (p *PubrelMessage) Unpack(b io.Reader) (err error) {
 	p.MessageId = readUint16(b)
+	return
 }
 
 type SubscribeMessage struct {
@@ -797,7 +832,7 @@ func (s *SubscribeMessage) decodeFlags(b byte) {
 	s.TopicIdType = b & TOPICIDTYPE
 }
 
-func (s *SubscribeMessage) Write(w io.Writer) error {
+func (s *SubscribeMessage) Write(w io.Writer) (err error) {
 	switch s.TopicIdType {
 	case 0x00, 0x02:
 		s.Header.Length = uint16(len(s.TopicName) + 5)
@@ -814,21 +849,22 @@ func (s *SubscribeMessage) Write(w io.Writer) error {
 	case 0x01:
 		packet.Write(encodeUint16(s.TopicId))
 	}
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (s *SubscribeMessage) Unpack(b io.Reader) {
+func (s *SubscribeMessage) Unpack(b io.Reader) (err error) {
 	s.decodeFlags(readByte(b))
 	s.MessageId = readUint16(b)
 	switch s.TopicIdType {
 	case 0x00, 0x02:
 		s.TopicName = make([]byte, s.Header.Length-5)
-		b.Read(s.TopicName)
+		s.TopicName, err = readString(b)
 	case 0x01:
 		s.TopicId = readUint16(b)
 	}
+	return
 }
 
 type SubackMessage struct {
@@ -862,23 +898,24 @@ func (s *SubackMessage) decodeFlags(b byte) {
 	s.Qos = (b & QOSBITS) >> 5
 }
 
-func (s *SubackMessage) Write(w io.Writer) error {
+func (s *SubackMessage) Write(w io.Writer) (err error) {
 	packet := s.Header.pack()
 	packet.WriteByte(SUBACK)
 	packet.WriteByte(s.encodeFlags())
 	packet.Write(encodeUint16(s.TopicId))
 	packet.Write(encodeUint16(s.MessageId))
 	packet.WriteByte(s.ReturnCode)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (s *SubackMessage) Unpack(b io.Reader) {
+func (s *SubackMessage) Unpack(b io.Reader) (err error) {
 	s.decodeFlags(readByte(b))
 	s.TopicId = readUint16(b)
 	s.MessageId = readUint16(b)
 	s.ReturnCode = readByte(b)
+	return
 }
 
 type UnsubscribeMessage struct {
@@ -903,7 +940,7 @@ func (s *UnsubscribeMessage) decodeFlags(b byte) {
 	s.TopicIdType = b & TOPICIDTYPE
 }
 
-func (u *UnsubscribeMessage) Write(w io.Writer) error {
+func (u *UnsubscribeMessage) Write(w io.Writer) (err error) {
 	switch u.TopicIdType {
 	case 0x00, 0x02:
 		u.Header.Length = uint16(len(u.TopicName) + 5)
@@ -920,20 +957,21 @@ func (u *UnsubscribeMessage) Write(w io.Writer) error {
 	case 0x01:
 		packet.Write(encodeUint16(u.TopicId))
 	}
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (u *UnsubscribeMessage) Unpack(b io.Reader) {
+func (u *UnsubscribeMessage) Unpack(b io.Reader) (err error) {
 	u.decodeFlags(readByte(b))
 	u.MessageId = readUint16(b)
 	switch u.TopicIdType {
 	case 0x00, 0x02:
-		b.Read(u.TopicName)
+		u.TopicName, err = readString(b)
 	case 0x01:
 		u.TopicId = readUint16(b)
 	}
+	return
 }
 
 type UnsubackMessage struct {
@@ -945,17 +983,18 @@ func (u *UnsubackMessage) MessageType() byte {
 	return UNSUBACK
 }
 
-func (u *UnsubackMessage) Write(w io.Writer) error {
+func (u *UnsubackMessage) Write(w io.Writer) (err error) {
 	packet := u.Header.pack()
 	packet.WriteByte(UNSUBACK)
 	packet.Write(encodeUint16(u.MessageId))
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (u *UnsubackMessage) Unpack(b io.Reader) {
+func (u *UnsubackMessage) Unpack(b io.Reader) (err error) {
 	u.MessageId = readUint16(b)
+	return
 }
 
 type PingreqMessage struct {
@@ -967,22 +1006,23 @@ func (p *PingreqMessage) MessageType() byte {
 	return PINGREQ
 }
 
-func (p *PingreqMessage) Write(w io.Writer) error {
+func (p *PingreqMessage) Write(w io.Writer) (err error) {
 	p.Header.Length = uint16(len(p.ClientId) + 2)
 	packet := p.Header.pack()
 	packet.WriteByte(PINGREQ)
 	if len(p.ClientId) > 0 {
 		packet.Write(p.ClientId)
 	}
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (p *PingreqMessage) Unpack(b io.Reader) {
+func (p *PingreqMessage) Unpack(b io.Reader) (err error) {
 	if p.Header.Length > 2 {
-		b.Read(p.ClientId)
+		p.ClientId, err = readString(b)
 	}
+	return
 }
 
 type PingrespMessage struct {
@@ -993,16 +1033,16 @@ func (p *PingrespMessage) MessageType() byte {
 	return PINGRESP
 }
 
-func (p *PingrespMessage) Write(w io.Writer) error {
+func (p *PingrespMessage) Write(w io.Writer) (err error) {
 	packet := p.Header.pack()
 	packet.WriteByte(PINGRESP)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (p *PingrespMessage) Unpack(b io.Reader) {
-
+func (p *PingrespMessage) Unpack(b io.Reader) (err error) {
+	return
 }
 
 type DisconnectMessage struct {
@@ -1014,7 +1054,7 @@ func (d *DisconnectMessage) MessageType() byte {
 	return DISCONNECT
 }
 
-func (d *DisconnectMessage) Write(w io.Writer) error {
+func (d *DisconnectMessage) Write(w io.Writer) (err error) {
 	var packet bytes.Buffer
 
 	if d.Duration == 0 {
@@ -1027,15 +1067,16 @@ func (d *DisconnectMessage) Write(w io.Writer) error {
 		packet.WriteByte(DISCONNECT)
 		packet.Write(encodeUint16(d.Duration))
 	}
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (d *DisconnectMessage) Unpack(b io.Reader) {
+func (d *DisconnectMessage) Unpack(b io.Reader) (err error) {
 	if d.Header.Length == 4 {
 		d.Duration = readUint16(b)
 	}
+	return
 }
 
 type WillTopicUpdateMessage struct {
@@ -1063,20 +1104,21 @@ func (wt *WillTopicUpdateMessage) decodeFlags(b byte) {
 	wt.Retain = (b & RETAINFLAG) == RETAINFLAG
 }
 
-func (wt *WillTopicUpdateMessage) Write(w io.Writer) error {
+func (wt *WillTopicUpdateMessage) Write(w io.Writer) (err error) {
 	wt.Header.Length = uint16(len(wt.WillTopic) + 3)
 	packet := wt.Header.pack()
 	packet.WriteByte(WILLTOPICUPD)
 	packet.WriteByte(wt.encodeFlags())
 	packet.Write(wt.WillTopic)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (wt *WillTopicUpdateMessage) Unpack(b io.Reader) {
+func (wt *WillTopicUpdateMessage) Unpack(b io.Reader) (err error) {
 	wt.decodeFlags(readByte(b))
-	b.Read(wt.WillTopic)
+	wt.WillTopic, err = readString(b)
+	return
 }
 
 type WillTopicRespMessage struct {
@@ -1088,17 +1130,18 @@ func (wt *WillTopicRespMessage) MessageType() byte {
 	return WILLTOPICRESP
 }
 
-func (wt *WillTopicRespMessage) Write(w io.Writer) error {
+func (wt *WillTopicRespMessage) Write(w io.Writer) (err error) {
 	packet := wt.Header.pack()
 	packet.WriteByte(WILLTOPICRESP)
 	packet.WriteByte(wt.ReturnCode)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (wt *WillTopicRespMessage) Unpack(b io.Reader) {
+func (wt *WillTopicRespMessage) Unpack(b io.Reader) (err error) {
 	wt.ReturnCode = readByte(b)
+	return
 }
 
 type WillMsgUpdateMessage struct {
@@ -1110,18 +1153,19 @@ func (wm *WillMsgUpdateMessage) MessageType() byte {
 	return WILLMSGUPD
 }
 
-func (wm *WillMsgUpdateMessage) Write(w io.Writer) error {
+func (wm *WillMsgUpdateMessage) Write(w io.Writer) (err error) {
 	wm.Header.Length = uint16(len(wm.WillMsg) + 2)
 	packet := wm.Header.pack()
 	packet.WriteByte(WILLMSGUPD)
 	packet.Write(wm.WillMsg)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (wm *WillMsgUpdateMessage) Unpack(b io.Reader) {
-	b.Read(wm.WillMsg)
+func (wm *WillMsgUpdateMessage) Unpack(b io.Reader) (err error) {
+	_, err = b.Read(wm.WillMsg)
+	return
 }
 
 type WillMsgRespMessage struct {
@@ -1133,15 +1177,16 @@ func (wm *WillMsgRespMessage) MessageType() byte {
 	return WILLMSGRESP
 }
 
-func (wm *WillMsgRespMessage) Write(w io.Writer) error {
+func (wm *WillMsgRespMessage) Write(w io.Writer) (err error) {
 	packet := wm.Header.pack()
 	packet.WriteByte(WILLMSGRESP)
 	packet.WriteByte(wm.ReturnCode)
-	_, err := packet.WriteTo(w)
+	_, err = packet.WriteTo(w)
 
-	return err
+	return
 }
 
-func (wm *WillMsgRespMessage) Unpack(b io.Reader) {
+func (wm *WillMsgRespMessage) Unpack(b io.Reader) (err error) {
 	wm.ReturnCode = readByte(b)
+	return
 }
