@@ -292,8 +292,12 @@ func readString(b io.Reader) (buf []byte, err error) {
 	ok := utf8.Valid(buf)
 	if n < 2 || !ok {
 		err = errors.New("bad topic name")
-		return
 	}
+	return
+}
+
+func readTopic(b io.Reader) (buf []byte, err error) {
+	buf, err = readString(b)
 	if buf[0] != '/' {
 		err = errors.New("topic name must start with a slash")
 	}
@@ -518,7 +522,7 @@ func (wt *WillTopicMessage) Write(w io.Writer) (err error) {
 func (wt *WillTopicMessage) Unpack(b io.Reader) (err error) {
 	if wt.Header.Length > 2 {
 		wt.decodeFlags(readByte(b))
-		wt.WillTopic, err = readString(b)
+		wt.WillTopic, err = readTopic(b)
 	}
 	return
 }
@@ -602,7 +606,7 @@ func (r *RegisterMessage) Unpack(b io.Reader) (err error) {
 	r.TopicId = readUint16(b)
 	r.MessageId = readUint16(b)
 	r.TopicName = make([]byte, r.Header.Length-6)
-	r.TopicName, err = readString(b)
+	r.TopicName, err = readTopic(b)
 	return
 }
 
@@ -860,7 +864,7 @@ func (s *SubscribeMessage) Unpack(b io.Reader) (err error) {
 	switch s.TopicIdType {
 	case 0x00, 0x02:
 		s.TopicName = make([]byte, s.Header.Length-5)
-		s.TopicName, err = readString(b)
+		s.TopicName, err = readTopic(b)
 	case 0x01:
 		s.TopicId = readUint16(b)
 	}
@@ -967,7 +971,7 @@ func (u *UnsubscribeMessage) Unpack(b io.Reader) (err error) {
 	u.MessageId = readUint16(b)
 	switch u.TopicIdType {
 	case 0x00, 0x02:
-		u.TopicName, err = readString(b)
+		u.TopicName, err = readTopic(b)
 	case 0x01:
 		u.TopicId = readUint16(b)
 	}
@@ -1020,7 +1024,7 @@ func (p *PingreqMessage) Write(w io.Writer) (err error) {
 
 func (p *PingreqMessage) Unpack(b io.Reader) (err error) {
 	if p.Header.Length > 2 {
-		p.ClientId, err = readString(b)
+		p.ClientId, err = readTopic(b)
 	}
 	return
 }
@@ -1117,7 +1121,7 @@ func (wt *WillTopicUpdateMessage) Write(w io.Writer) (err error) {
 
 func (wt *WillTopicUpdateMessage) Unpack(b io.Reader) (err error) {
 	wt.decodeFlags(readByte(b))
-	wt.WillTopic, err = readString(b)
+	wt.WillTopic, err = readTopic(b)
 	return
 }
 

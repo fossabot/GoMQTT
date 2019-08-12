@@ -26,11 +26,14 @@ func NewClient(ClientId string, Conn *net.UDPConn, Address *net.UDPAddr) *Client
 	}
 }
 
-func (c *Client) Write(m Message) error {
+func (c *Client) Write(m Message) (err error) {
 	var buf bytes.Buffer
-	m.Write(&buf)
-	_, e := c.Conn.WriteToUDP(buf.Bytes(), c.Address)
-	return e
+	err = m.Write(&buf)
+	if err != nil {
+		return
+	}
+	_, err = c.Conn.WriteToUDP(buf.Bytes(), c.Address)
+	return
 }
 
 func (c *Client) Register(topicId uint16, topic string) {
