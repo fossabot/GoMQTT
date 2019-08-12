@@ -69,7 +69,10 @@ func Advertise(d uint16) {
 			adv := NewMessage(ADVERTISE).(*AdvertiseMessage)
 			adv.GatewayId = 0
 			adv.Duration = d
-			client.Write(adv)
+			err := client.Write(adv)
+			if err != nil {
+				log.Println("Unable to send ADVERTISE to the client:", client.ClientId, ":", err)
+			}
 		}
 		time.Sleep((time.Duration(d) * time.Second) - (850 * time.Millisecond))
 	}

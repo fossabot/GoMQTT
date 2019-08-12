@@ -82,7 +82,7 @@ func main() {
 	}
 
 	// Shutdown gracefully on signal
-	c := make(chan os.Signal)
+	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt,
 		syscall.SIGTERM,
 		syscall.SIGINT,

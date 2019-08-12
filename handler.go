@@ -35,7 +35,7 @@ func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAdd
 		}
 		tClient := NewClient(string(clientid), con, addr)
 		if msg.Will {
-
+			// TODO: implement wills
 		}
 		clients.AddClient(tClient)
 		ca := NewMessage(CONNACK).(*ConnackMessage)
