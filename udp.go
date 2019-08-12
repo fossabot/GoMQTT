@@ -42,11 +42,17 @@ func ListenUDP(addr string) {
 	}
 	go Advertise(180)
 	for {
-		buf := make([]byte, 1024)
+		buf := make([]byte, serv.Config.Buffer)
 		n, remote, err := udpconn.ReadFromUDP(buf)
 		if err != nil {
-			// TODO: better error processing
-			log.Fatalln(err)
+			// TODO: Better error processing
+			log.Println("Socket error:", err)
+			time.Sleep(3 * time.Second)
+			continue
+		}
+		if n < 2 {
+			log.Println("Bad data from", remote.String())
+			continue
 		}
 		go ProcessPacket(n, buf, udpconn, remote)
 	}

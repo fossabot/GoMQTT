@@ -7,9 +7,12 @@ import (
 )
 
 func ProcessPacket(nbytes int, buffer []byte, con *net.UDPConn, addr *net.UDPAddr) {
+	buffer = buffer[:nbytes]
 	buf := bytes.NewBuffer(buffer)
 	rawmsg, _ := ReadPacket(buf)
-	debug(rawmsg)
+	if serv.Config.Debug {
+		log.Println(rawmsg)
+	}
 
 	switch msg := rawmsg.(type) {
 	case *AdvertiseMessage:

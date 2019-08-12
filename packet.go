@@ -129,7 +129,7 @@ type Message interface {
 
 func ReadPacket(r io.Reader) (m Message, err error) {
 	var h Header
-	packet := make([]byte, 1500)
+	packet := make([]byte, serv.Config.Buffer)
 	r.Read(packet)
 	packetBuf := bytes.NewBuffer(packet)
 	h.unpack(packetBuf)

@@ -15,41 +15,33 @@ import (
 
 // Server is a binding structure that binds everything related to the broker
 // runtime.
-type Server struct {
+var serv struct {
 	Config struct {
 		Debug bool
+		MQTTAddress   string
+		MQTTSNAddress string
+		Buffer int
 		Log   struct {
 			Path string
 			UTC  bool
 		}
-		MQTTAddress   string
-		MQTTSNAddress string
 	}
 }
 
-var serv Server
-
 // LoadConfig reads config from specified file and decodes it into a generic
 // structure
-func (s *Server) LoadConfig(path string) error {
+func LoadConfig(path string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	if _, err := toml.DecodeReader(file, &s.Config); err != nil {
+	if _, err := toml.DecodeReader(file, &serv.Config); err != nil {
 		return err
 	}
 
 	return nil
-}
-
-// basically debugging hexa way lol
-func debug(s ...interface{}) {
-	if serv.Config.Debug {
-		log.Println(s...)
-	}
 }
 
 func main() {
@@ -57,7 +49,7 @@ func main() {
 	fmt.Println("Copyright © 2019 Vladyslav Yamkovyi (Hexawolf)")
 	fmt.Println()
 
-	err := serv.LoadConfig("broker.cfg")
+	err := LoadConfig("broker.cfg")
 	if err != nil {
 		fmt.Println("open broker.cfg: The system cannot find the file specified.")
 		os.Exit(1)
