@@ -11,7 +11,8 @@ linters:
     - govet
     - unused
     - scopelint
-    - goimports
     - prealloc
     - misspell
     - unconvert
+  disable:
+    - goimports

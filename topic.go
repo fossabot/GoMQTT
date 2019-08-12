@@ -69,7 +69,7 @@ func (repo *topicNames) putTopic(topic string) uint16 {
 // - A TopicName may not contain a wildcard.
 // - A TopicFilter may only have a # (multi-level) wildcard as the last level.
 // - A TopicFilter may contain any number of + (single-level) wildcards.
-// - A TopicFilter with a # will match the absense of a level
+// - A TopicFilter with a # will match the absence of a level
 //     Example:  a subscription to "foo/#" will match messages published to "foo".
 
 func ContainsWildcard(topic string) bool {
@@ -99,6 +99,9 @@ func ValidateTopicFilter(topic string) ([]string, error) {
 func ValidateTopicName(topic string) ([]string, error) {
 	if len(topic) == 0 {
 		return nil, errors.New("TopicName cannot be empty string")
+	}
+	if len(topic) < 2 || topic[0] != '/' {
+		return nil, errors.New("TopicName must start with a slash")
 	}
 
 	levels := strings.Split(topic, "/")
